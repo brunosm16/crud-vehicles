@@ -1,41 +1,45 @@
-# compiled output
-/dist
-/node_modules
-
-# Logs
-logs
-*.log
+# Node.js dependencies
+node_modules/
 npm-debug.log*
-pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-lerna-debug.log*
+pnpm-debug.log*
 
-# OS
+# Environment variables
+.env
+.env.*
+
+# Build output
+dist/
+build/
+out/
+coverage/
+
+# OS files
 .DS_Store
+Thumbs.db
 
-# Tests
-/coverage
-/.nyc_output
+# Logs
+logs/
+*.log
 
 # IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
+.vscode/
+.idea/
 *.sublime-workspace
+*.sublime-project
 
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# Optional npm cache directory
+.npm/
 
-.data
-/files
-.env
-/ormconfig.json
-.codegpt
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Todo files
+*todo.md
