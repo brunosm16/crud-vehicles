@@ -9,7 +9,8 @@
     "build:prod": "ng build --configuration production",
     "test": "jest",
     "test:watch": "jest --watch",
-    "lint": "eslint \"src/**/*.ts\""
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
     "@angular/animations": "^17.3.12",

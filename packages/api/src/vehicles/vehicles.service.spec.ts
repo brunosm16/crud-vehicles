@@ -70,6 +70,12 @@ describe('VehiclesService', () => {
         order: { createdAt: 'DESC' },
       });
     });
+
+    it('should return empty array when no vehicles', async () => {
+      mockRepository.find.mockResolvedValue([]);
+      const result = await service.findAll();
+      expect(result).toEqual([]);
+    });
   });
 
   describe('findOne', () => {
@@ -77,12 +83,20 @@ describe('VehiclesService', () => {
       mockRepository.findOneBy.mockResolvedValue(mockVehicle);
       const result = await service.findOne('uuid-1');
       expect(result).toEqual(mockVehicle);
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: 'uuid-1' });
     });
 
     it('should throw NotFoundException when not found', async () => {
       mockRepository.findOneBy.mockResolvedValue(null);
       await expect(service.findOne('non-existent')).rejects.toThrow(
         NotFoundException
+      );
+    });
+
+    it('should include id in NotFoundException message', async () => {
+      mockRepository.findOneBy.mockResolvedValue(null);
+      await expect(service.findOne('abc-123')).rejects.toThrow(
+        'Veículo com id "abc-123" não encontrado'
       );
     });
   });
@@ -98,20 +112,77 @@ describe('VehiclesService', () => {
       expect(mockRepository.save).toHaveBeenCalledWith(mockVehicle);
     });
 
-    it('should throw ConflictException when placa/chassi/renavam already exists', async () => {
+    it('should call ensureUnique before creating', async () => {
+      mockRepository.create.mockReturnValue(mockVehicle);
+      mockRepository.save.mockResolvedValue(mockVehicle);
+
+      await service.create(mockDto);
+      expect(createQueryBuilderMock.where).toHaveBeenCalledWith(
+        'v.placa = :placa OR v.chassi = :chassi OR v.renavam = :renavam',
+        {
+          placa: mockDto.placa,
+          chassi: mockDto.chassi,
+          renavam: mockDto.renavam,
+        }
+      );
+      expect(createQueryBuilderMock.andWhere).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException when placa already exists', async () => {
       createQueryBuilderMock.getOne.mockResolvedValue(mockVehicle);
+      await expect(service.create(mockDto)).rejects.toThrow(ConflictException);
+      await expect(service.create(mockDto)).rejects.toThrow(
+        'Já existe um veículo com a mesma placa, chassi ou renavam'
+      );
+    });
+
+    it('should throw ConflictException when chassi already exists', async () => {
+      createQueryBuilderMock.getOne.mockResolvedValue({
+        ...mockVehicle,
+        placa: 'XYZ9999',
+      });
       await expect(service.create(mockDto)).rejects.toThrow(ConflictException);
     });
   });
 
   describe('update', () => {
     it('should update and return the vehicle', async () => {
-      mockRepository.findOneBy.mockResolvedValue({ ...mockVehicle });
+      const existing = { ...mockVehicle };
+      mockRepository.findOneBy.mockResolvedValue(existing);
       const updated = { ...mockVehicle, modelo: 'Civic' };
       mockRepository.save.mockResolvedValue(updated);
 
       const result = await service.update('uuid-1', { modelo: 'Civic' });
       expect(result.modelo).toBe('Civic');
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+
+    it('should call ensureUnique with excludeId on update', async () => {
+      const existing = { ...mockVehicle };
+      mockRepository.findOneBy.mockResolvedValue(existing);
+      mockRepository.save.mockResolvedValue(existing);
+
+      await service.update('uuid-1', { modelo: 'Civic' });
+      expect(createQueryBuilderMock.andWhere).toHaveBeenCalledWith(
+        'v.id != :excludeId',
+        { excludeId: 'uuid-1' }
+      );
+    });
+
+    it('should use existing values for fields not in dto', async () => {
+      const existing = { ...mockVehicle };
+      mockRepository.findOneBy.mockResolvedValue(existing);
+      mockRepository.save.mockResolvedValue(existing);
+
+      await service.update('uuid-1', { modelo: 'Civic' });
+      expect(createQueryBuilderMock.where).toHaveBeenCalledWith(
+        'v.placa = :placa OR v.chassi = :chassi OR v.renavam = :renavam',
+        {
+          placa: existing.placa,
+          chassi: existing.chassi,
+          renavam: existing.renavam,
+        }
+      );
     });
 
     it('should throw NotFoundException when vehicle not found', async () => {
@@ -119,6 +190,33 @@ describe('VehiclesService', () => {
       await expect(
         service.update('non-existent', { modelo: 'Civic' })
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ConflictException when updating to conflicting data', async () => {
+      const existing = { ...mockVehicle };
+      mockRepository.findOneBy.mockResolvedValue(existing);
+      createQueryBuilderMock.getOne.mockResolvedValue({
+        ...mockVehicle,
+        id: 'uuid-2',
+      });
+
+      await expect(
+        service.update('uuid-1', { placa: 'CONFLICT' })
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should merge dto into existing entity', async () => {
+      const existing = { ...mockVehicle };
+      mockRepository.findOneBy.mockResolvedValue(existing);
+      mockRepository.save.mockImplementation((v) => Promise.resolve(v));
+
+      const result = await service.update('uuid-1', {
+        modelo: 'Civic',
+        marca: 'Honda',
+      });
+      expect(result.modelo).toBe('Civic');
+      expect(result.marca).toBe('Honda');
+      expect(result.placa).toBe(mockVehicle.placa);
     });
   });
 
@@ -131,11 +229,20 @@ describe('VehiclesService', () => {
       expect(mockRepository.delete).toHaveBeenCalledWith('uuid-1');
     });
 
+    it('should call findOne before deleting', async () => {
+      mockRepository.findOneBy.mockResolvedValue(mockVehicle);
+      mockRepository.delete.mockResolvedValue({ affected: 1 });
+
+      await service.remove('uuid-1');
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: 'uuid-1' });
+    });
+
     it('should throw NotFoundException when vehicle not found', async () => {
       mockRepository.findOneBy.mockResolvedValue(null);
       await expect(service.remove('non-existent')).rejects.toThrow(
         NotFoundException
       );
+      expect(mockRepository.delete).not.toHaveBeenCalled();
     });
   });
 });

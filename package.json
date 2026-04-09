@@ -5,6 +5,7 @@
     "clean": "pnpm -r clean",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
     "start:api": "pnpm --filter @crud-vehicles/api start:dev",
     "start:web": "pnpm --filter @crud-vehicles/web start",
     "start:all": "pnpm start:api & pnpm start:web",
