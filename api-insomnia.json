@@ -1,0 +1,125 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-04-09T00:00:00.000Z",
+  "__export_source": "insomnia.importers",
+  "resources": [
+    {
+      "_id": "wrk_crud_vehicles",
+      "_type": "workspace",
+      "name": "CRUD Vehicles API",
+      "description": "API RESTful para gerenciamento de veículos",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_crud_vehicles",
+      "name": "Local",
+      "data": {
+        "base_url": "http://localhost:3000/api",
+        "vehicle_id": ""
+      }
+    },
+    {
+      "_id": "fld_vehicles",
+      "_type": "request_group",
+      "parentId": "wrk_crud_vehicles",
+      "name": "Vehicles"
+    },
+    {
+      "_id": "req_list_vehicles",
+      "_type": "request",
+      "parentId": "fld_vehicles",
+      "name": "Listar veículos",
+      "description": "Retorna lista paginada de veículos com suporte a filtros.\n\nQuery params opcionais:\n- page (default: 1)\n- limit (default: 10, max: 100)\n- placa, chassi, renavam, modelo, marca (busca parcial)\n- ano (busca exata)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/vehicles",
+      "parameters": [
+        { "name": "page", "value": "1", "disabled": false },
+        { "name": "limit", "value": "10", "disabled": false },
+        { "name": "marca", "value": "", "disabled": true },
+        { "name": "modelo", "value": "", "disabled": true },
+        { "name": "ano", "value": "", "disabled": true },
+        { "name": "placa", "value": "", "disabled": true },
+        { "name": "chassi", "value": "", "disabled": true },
+        { "name": "renavam", "value": "", "disabled": true }
+      ],
+      "headers": [{ "name": "Accept", "value": "application/json" }],
+      "body": {}
+    },
+    {
+      "_id": "req_get_vehicle",
+      "_type": "request",
+      "parentId": "fld_vehicles",
+      "name": "Buscar veículo por ID",
+      "description": "Retorna um veículo pelo UUID.\n\nRespostas:\n- 200: Veículo encontrado\n- 400: UUID inválido\n- 404: Veículo não encontrado",
+      "method": "GET",
+      "url": "{{ _.base_url }}/vehicles/{{ _.vehicle_id }}",
+      "headers": [{ "name": "Accept", "value": "application/json" }],
+      "body": {}
+    },
+    {
+      "_id": "req_create_vehicle",
+      "_type": "request",
+      "parentId": "fld_vehicles",
+      "name": "Criar veículo",
+      "description": "Cria um novo veículo. Todos os campos são obrigatórios.\n\nValidações:\n- placa: 7–10 caracteres\n- chassi: exatamente 17 caracteres\n- renavam: 9–11 dígitos numéricos\n- modelo: 1–100 caracteres\n- marca: 1–50 caracteres\n- ano: entre 1900 e ano atual + 1\n\nRespostas:\n- 201: Veículo criado\n- 400: Dados inválidos\n- 409: Placa, chassi ou renavam já cadastrados",
+      "method": "POST",
+      "url": "{{ _.base_url }}/vehicles",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"placa\": \"ABC1D23\",\n  \"chassi\": \"9BWZZZ377VT004251\",\n  \"renavam\": \"12345678901\",\n  \"modelo\": \"Corolla\",\n  \"marca\": \"Toyota\",\n  \"ano\": 2024\n}"
+      }
+    },
+    {
+      "_id": "req_replace_vehicle",
+      "_type": "request",
+      "parentId": "fld_vehicles",
+      "name": "Substituir veículo (PUT)",
+      "description": "Substituição completa do recurso. Todos os campos são obrigatórios.\n\nRespostas:\n- 200: Veículo substituído\n- 400: Dados inválidos ou UUID inválido\n- 404: Veículo não encontrado\n- 409: Placa, chassi ou renavam conflitam com outro veículo",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/vehicles/{{ _.vehicle_id }}",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"placa\": \"ABC1D23\",\n  \"chassi\": \"9BWZZZ377VT004251\",\n  \"renavam\": \"12345678901\",\n  \"modelo\": \"Corolla Cross\",\n  \"marca\": \"Toyota\",\n  \"ano\": 2025\n}"
+      }
+    },
+    {
+      "_id": "req_update_vehicle",
+      "_type": "request",
+      "parentId": "fld_vehicles",
+      "name": "Atualizar veículo (PATCH)",
+      "description": "Atualização parcial do recurso. Envie apenas os campos que deseja alterar.\n\nRespostas:\n- 200: Veículo atualizado\n- 400: Dados inválidos ou UUID inválido\n- 404: Veículo não encontrado\n- 409: Placa, chassi ou renavam conflitam com outro veículo",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/vehicles/{{ _.vehicle_id }}",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"modelo\": \"Corolla Cross\",\n  \"ano\": 2025\n}"
+      }
+    },
+    {
+      "_id": "req_delete_vehicle",
+      "_type": "request",
+      "parentId": "fld_vehicles",
+      "name": "Remover veículo",
+      "description": "Remove um veículo pelo UUID.\n\nRespostas:\n- 204: Veículo removido (sem corpo)\n- 400: UUID inválido\n- 404: Veículo não encontrado",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/vehicles/{{ _.vehicle_id }}",
+      "headers": [{ "name": "Accept", "value": "application/json" }],
+      "body": {}
+    }
+  ]
+}

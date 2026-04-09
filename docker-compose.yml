@@ -1,4 +1,48 @@
 services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - '2181:2181'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-server:7.3.0
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+      - '9094:9094'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092,OUTSIDE://host.docker.internal:9094
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      CONFLUENT_METRICS_ENABLE: 'false'
+      CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'kafka-broker-api-versions',
+          '--bootstrap-server',
+          'localhost:9092',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
@@ -8,16 +52,36 @@ services:
       NODE_ENV: production
       PORT: '3000'
       DB_PATH: /data/vehicles.sqlite
+      KAFKA_BROKERS: kafka:29092
     volumes:
       - vehicles-data:/data
     ports:
       - '3000:3000'
+    depends_on:
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/vehicles']
       interval: 30s
       timeout: 10s
       retries: 3
+
+  audit:
+    build:
+      context: .
+      dockerfile: packages/infra/audit.Dockerfile
+    container_name: vehicles-audit
+    environment:
+      NODE_ENV: production
+      DB_PATH: /data/audit.sqlite
+      KAFKA_BROKERS: kafka:29092
+    volumes:
+      - audit-data:/data
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
 
   web:
     build:
@@ -32,3 +96,4 @@ services:
 
 volumes:
   vehicles-data:
+  audit-data:

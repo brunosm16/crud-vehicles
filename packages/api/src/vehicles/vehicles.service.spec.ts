@@ -5,6 +5,7 @@ import { Not } from 'typeorm';
 import { VehiclesService } from './vehicles.service';
 import { Vehicle } from './vehicle.entity';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
+import { KafkaProducerService } from '../kafka/kafka-producer.service';
 
 const mockVehicle: Vehicle = {
   id: 'uuid-1',
@@ -50,6 +51,12 @@ const mockRepository = {
   createQueryBuilder: jest.fn(() => createQueryBuilderMock),
 };
 
+const mockKafkaProducer = {
+  emitVehicleEvent: jest.fn(),
+  connect: jest.fn(),
+  disconnect: jest.fn(),
+};
+
 describe('VehiclesService', () => {
   let service: VehiclesService;
 
@@ -64,6 +71,10 @@ describe('VehiclesService', () => {
         {
           provide: getRepositoryToken(Vehicle),
           useValue: mockRepository,
+        },
+        {
+          provide: KafkaProducerService,
+          useValue: mockKafkaProducer,
         },
       ],
     }).compile();
@@ -177,6 +188,21 @@ describe('VehiclesService', () => {
       });
     });
 
+    it('should emit CREATED event via Kafka', async () => {
+      mockRepository.create.mockReturnValue(mockVehicle);
+      mockRepository.save.mockResolvedValue(mockVehicle);
+
+      await service.create(mockDto);
+      expect(mockKafkaProducer.emitVehicleEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'CREATED',
+          entityId: mockVehicle.id,
+          before: null,
+          after: expect.objectContaining({ placa: mockDto.placa }),
+        })
+      );
+    });
+
     it('should throw ConflictException when placa already exists', async () => {
       mockRepository.findOne.mockResolvedValue(mockVehicle);
       await expect(service.create(mockDto)).rejects.toThrow(ConflictException);
@@ -238,6 +264,22 @@ describe('VehiclesService', () => {
       );
     });
 
+    it('should emit UPDATED event via Kafka', async () => {
+      const existing = { ...mockVehicle };
+      mockRepository.findOneBy.mockResolvedValue(existing);
+      mockRepository.save.mockImplementation((v) => Promise.resolve(v));
+
+      await service.update('uuid-1', { modelo: 'Civic' });
+      expect(mockKafkaProducer.emitVehicleEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'UPDATED',
+          entityId: 'uuid-1',
+          before: expect.objectContaining({ modelo: 'Corolla' }),
+          after: expect.objectContaining({ modelo: 'Civic' }),
+        })
+      );
+    });
+
     it('should throw NotFoundException when vehicle not found', async () => {
       mockRepository.findOneBy.mockResolvedValue(null);
       await expect(
@@ -288,6 +330,21 @@ describe('VehiclesService', () => {
 
       await service.remove('uuid-1');
       expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: 'uuid-1' });
+    });
+
+    it('should emit DELETED event via Kafka', async () => {
+      mockRepository.findOneBy.mockResolvedValue(mockVehicle);
+      mockRepository.delete.mockResolvedValue({ affected: 1 });
+
+      await service.remove('uuid-1');
+      expect(mockKafkaProducer.emitVehicleEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'DELETED',
+          entityId: 'uuid-1',
+          before: expect.objectContaining({ placa: mockVehicle.placa }),
+          after: null,
+        })
+      );
     });
 
     it('should throw NotFoundException when vehicle not found', async () => {

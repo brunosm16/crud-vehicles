@@ -9,6 +9,7 @@ import { Vehicle } from './vehicle.entity';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { ListVehiclesQueryDto } from './dto/list-vehicles-query.dto';
+import { KafkaProducerService } from '../kafka/kafka-producer.service';
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -24,7 +25,8 @@ export interface PaginatedResult<T> {
 export class VehiclesService {
   constructor(
     @InjectRepository(Vehicle)
-    private readonly vehiclesRepository: Repository<Vehicle>
+    private readonly vehiclesRepository: Repository<Vehicle>,
+    private readonly kafkaProducer: KafkaProducerService
   ) {}
 
   async findAll(
@@ -76,11 +78,20 @@ export class VehiclesService {
   async create(dto: CreateVehicleDto): Promise<Vehicle> {
     await this.ensureUnique(dto.placa, dto.chassi, dto.renavam);
     const vehicle = this.vehiclesRepository.create(dto);
-    return this.vehiclesRepository.save(vehicle);
+    const saved = await this.vehiclesRepository.save(vehicle);
+    this.kafkaProducer.emitVehicleEvent({
+      action: 'CREATED',
+      entityId: saved.id,
+      before: null,
+      after: { ...saved },
+      timestamp: new Date().toISOString(),
+    });
+    return saved;
   }
 
   async update(id: string, dto: UpdateVehicleDto): Promise<Vehicle> {
     const existing = await this.findOne(id);
+    const before = { ...existing };
     await this.ensureUnique(
       dto.placa ?? existing.placa,
       dto.chassi ?? existing.chassi,
@@ -88,12 +99,27 @@ export class VehiclesService {
       id
     );
     Object.assign(existing, dto);
-    return this.vehiclesRepository.save(existing);
+    const saved = await this.vehiclesRepository.save(existing);
+    this.kafkaProducer.emitVehicleEvent({
+      action: 'UPDATED',
+      entityId: saved.id,
+      before,
+      after: { ...saved },
+      timestamp: new Date().toISOString(),
+    });
+    return saved;
   }
 
   async remove(id: string): Promise<void> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
     await this.vehiclesRepository.delete(id);
+    this.kafkaProducer.emitVehicleEvent({
+      action: 'DELETED',
+      entityId: id,
+      before: { ...existing },
+      after: null,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   private async ensureUnique(

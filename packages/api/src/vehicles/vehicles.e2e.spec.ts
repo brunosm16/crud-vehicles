@@ -5,6 +5,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { VehiclesModule } from './vehicles.module';
 import { Vehicle } from './vehicle.entity';
+import { KafkaProducerService } from '../kafka/kafka-producer.service';
+
+const mockKafkaProducer = {
+  emitVehicleEvent: jest.fn(),
+  connect: jest.fn(),
+  disconnect: jest.fn(),
+};
 
 const validDto = {
   placa: 'ABC1D23',
@@ -29,7 +36,10 @@ describe('Vehicles API (e2e)', () => {
         }),
         VehiclesModule,
       ],
-    }).compile();
+    })
+      .overrideProvider(KafkaProducerService)
+      .useValue(mockKafkaProducer)
+      .compile();
 
     app = module.createNestApplication();
     app.setGlobalPrefix('api');
