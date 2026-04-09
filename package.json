@@ -8,6 +8,7 @@
     "lint:fix": "pnpm -r lint:fix",
     "start:api": "pnpm --filter @crud-vehicles/api start:dev",
     "start:web": "pnpm --filter @crud-vehicles/web start",
+    "start:audit": "pnpm --filter @crud-vehicles/audit start:dev",
     "start:all": "pnpm start:api & pnpm start:web",
     "mdfix": "prettier *.md --write",
     "precommit": "lint-staged && pnpm test && pnpm build",

@@ -1,6 +1,6 @@
 # CRUD Vehicles — Monorepo
 
-Aplicação full-stack de gerenciamento de veículos, construída como **monorepo pnpm** com front-end Angular 17, API REST NestJS 10, microsserviço de auditoria com Kafka e orquestração via Docker Compose.
+Aplicação full-stack de gerenciamento de veículos, construída como **monorepo pnpm** com front-end em Angular 17 e API REST com NestJS, microsserviço de auditoria com Kafka e orquestração da aplicação via Docker Compose.
 
 ---
 
@@ -18,25 +18,23 @@ Aplicação full-stack de gerenciamento de veículos, construída como **monorep
   [Navegador]            [Sistema de arquivos]     [Sistema de arquivos]
 ```
 
-Em produção (Docker Compose), o **nginx** serve o build do Angular e faz proxy reverso das requisições `/api/` para o container da API. Kafka (Confluent) + Zookeeper cuidam do streaming de eventos entre a API e o serviço de auditoria.
-
 ---
+
+## Evidências em Vídeo
 
 ## Tecnologias Utilizadas
 
-| Camada         | Tecnologia                                                 |
-| -------------- | ---------------------------------------------------------- |
-| Front-end      | Angular 17, RxJS, SCSS, Zone.js                            |
-| Back-end       | NestJS 10, TypeORM, better-sqlite3, class-validator        |
-| Mensageria     | Apache Kafka (Confluent 7.4) via KafkaJS                   |
-| Auditoria      | NestJS 10 microsserviço, Winston logging, TypeORM + SQLite |
-| Testes         | Jest 29, Supertest, jest-preset-angular                    |
-| Linting        | ESLint 9 (flat config), Prettier, angular-eslint           |
-| Commits        | Commitlint (conventional), Commitizen, Husky, lint-staged  |
-| Infraestrutura | Docker (multi-stage), nginx 1.27, Docker Compose           |
-| Gerenciador    | pnpm 10 workspaces                                         |
-| Runtime        | Node.js 20 (Alpine)                                        |
-| Linguagem      | TypeScript ~5.4                                            |
+| Camada         | Tecnologia                                             |
+| -------------- | ------------------------------------------------------ |
+| Front-end      | Angular 17, RxJS, SCSS                                 |
+| Back-end       | NestJS, TypeORM, better-sqlite3                        |
+| Mensageria     | Apache Kafka via KafkaJS                               |
+| Auditoria      | NestJS(Microserviço), Winston, TypeORM, better-sqlite3 |
+| Testes         | Jest, Supertest                                        |
+| Linting        | ESLint 9, Prettier                                     |
+| Commits        | Commitlint, Commitizen, Husky, lint-staged             |
+| Infraestrutura | Docker, Docker Compose, NGINX                          |
+| Linguagem      | TypeScript                                             |
 
 ---
 
@@ -44,15 +42,15 @@ Em produção (Docker Compose), o **nginx** serve o build do Angular e faz proxy
 
 ```
 crud-vehicles/
-├── docker-compose.yml          # Orquestração full-stack
+├── docker-compose.yml          # Orquestração completa da aplicação
 ├── eslint.config.js            # Configuração compartilhada do ESLint
-├── tsconfig.base.json          # Configuração TS compartilhada (extends @tsconfig/node20)
+├── tsconfig.base.json          # Configuração do TypeScript compartilhada
 ├── commitlint.config.cjs       # Regras de commit convencional
-├── pnpm-workspace.yaml         # Definição do workspace pnpm
-├── package.json                # Scripts raiz e devDependencies
+├── pnpm-workspace.yaml         # Definição do workspace com pnpm
+├── package.json                # Scripts da aplicação
 │
 └── packages/
-    ├── api/                    # API REST NestJS
+    ├── api/                    # API REST em NestJS
     │   ├── src/
     │   │   ├── main.ts
     │   │   ├── app.module.ts
@@ -68,9 +66,9 @@ crud-vehicles/
     │   │           ├── create-vehicle.dto.ts
     │   │           ├── update-vehicle.dto.ts
     │   │           └── list-vehicles-query.dto.ts
-    │   └── data/               # Banco SQLite (ignorado pelo git)
+    │   └── data/               # Arquivo de dados do SQLite
     │
-    ├── audit/                  # Microsserviço de auditoria Kafka
+    ├── audit/                  # Microsserviço de auditoria em Kafka com NestJS
     │   └── src/
     │       ├── main.ts
     │       ├── audit.module.ts
@@ -96,7 +94,7 @@ crud-vehicles/
     │               ├── vehicle-list/
     │               └── vehicle-form/
     │
-    └── infra/                  # Configurações Docker e nginx
+    └── infra/                  # Configurações de Docker e NGINX
         ├── api.Dockerfile
         ├── audit.Dockerfile
         ├── web.Dockerfile
@@ -111,10 +109,7 @@ crud-vehicles/
 
 CRUD completo de veículos com validação, paginação, filtros e emissão de eventos via Kafka.
 
-- **Banco de dados**: SQLite via TypeORM + better-sqlite3
-- **Validação**: `class-validator` + `class-transformer` com `ValidationPipe` global (`whitelist`, `forbidNonWhitelisted`, `transform`)
 - **Prefixo global**: `/api`
-- **CORS**: Habilitado
 
 #### Entidade Vehicle
 
@@ -132,7 +127,7 @@ CRUD completo de veículos com validação, paginação, filtros e emissão de e
 
 #### Integração Kafka
 
-A cada `CREATE`, `UPDATE` ou `DELETE`, um `VehicleEvent` é publicado no tópico `vehicles.events`:
+A cada ação `CREATE`, `UPDATE` ou `DELETE`, um evento chamado `VehicleEvent` é publicado no tópico `vehicles.events`:
 
 Uma camada de logging com Winston registra os eventos recebidos no Kafka Consumer.
 
@@ -150,7 +145,7 @@ Uma camada de logging com Winston registra os eventos recebidos no Kafka Consume
 
 ### `packages/web` — SPA Angular
 
-Aplicação Angular 17 baseada em módulos com carregamento lazy do módulo de veículos.
+Aplicação Angular 17 para listagem de veículos, consumindo dados da API REST.
 
 - **Roteamento**: `AppRoutingModule` → carrega `VehiclesModule` sob demanda
 - **Componentes**: `VehicleListComponent` (tabela com exclusão), `VehicleFormComponent` (criação/edição)
@@ -195,8 +190,8 @@ O **nginx.conf** gerencia o roteamento HTML5 do Angular (`try_files`) e faz prox
 ### Pré-requisitos
 
 - **Node.js** ≥ 20
-- **pnpm** ≥ 10 (`corepack enable && corepack prepare pnpm@10.33.0 --activate`)
-- **Docker** e **Docker Compose** (para execução containerizada)
+- **pnpm** ≥ 10
+- **Docker** e **Docker Compose**
 
 ### Instalar Dependências
 
@@ -204,43 +199,30 @@ O **nginx.conf** gerencia o roteamento HTML5 do Angular (`try_files`) e faz prox
 pnpm install
 ```
 
-### Execução Local (desenvolvimento)
+### Execução via Containers (desenvolvimento)
 
-1. **Iniciar o Kafka** (necessário para a API produzir eventos):
-
-   ```bash
-   docker compose up -d zookeeper kafka
-   ```
-
-2. **Iniciar a API** (porta 3000):
+1. **Subir containers da aplicação**:
 
    ```bash
-   pnpm start:api
+   pnpm docker:up ou docker compose up -d --build
    ```
 
-3. **Iniciar o servidor Angular** (porta 4200, proxy `/api` → `localhost:3000`):
+2. Abra **http://localhost:4200** no navegador.
+
+### Execução local
+
+1. **Iniciar API e Front-end** (porta 4200, proxy `/api` → `localhost:3000`):
+   - Em
+   ```bash
+   pnpm start:all
+   ```
+2. Abra **http://localhost:4200** no navegador.
+
+3. **Iniciar o microsserviço de Auditoria** (porta 3001):
 
    ```bash
-   pnpm start:web
+   pnpm start:audit
    ```
-
-4. **(Opcional) Iniciar o microsserviço de Auditoria** (porta 3001):
-
-   ```bash
-   pnpm --filter @crud-vehicles/audit start:dev
-   ```
-
-5. Abra **http://localhost:4200** no navegador.
-
-### Execução com Docker Compose
-
-Compila e inicia todos os serviços (Zookeeper, Kafka, API, Auditoria, Web):
-
-```bash
-pnpm docker:up
-# ou
-docker compose up -d --build
-```
 
 | Serviço     | URL / Porta           |
 | ----------- | --------------------- |
@@ -333,9 +315,6 @@ pnpm --filter @crud-vehicles/api test:cov
 ## Linting e Formatação
 
 ```bash
-# Lint em todos os pacotes
 pnpm lint
-
-# Correção automática
 pnpm lint:fix
 ```
