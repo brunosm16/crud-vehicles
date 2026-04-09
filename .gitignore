@@ -43,3 +43,8 @@ logs/
 
 # Todo files
 *todo.md
+# SQLite database
+packages/api/data/
+
+# Angular cache
+packages/web/.angular/

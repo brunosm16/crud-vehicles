@@ -1,0 +1,34 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: packages/infra/api.Dockerfile
+    container_name: vehicles-api
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      DB_PATH: /data/vehicles.sqlite
+    volumes:
+      - vehicles-data:/data
+    ports:
+      - '3000:3000'
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/vehicles']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/infra/web.Dockerfile
+    container_name: vehicles-web
+    ports:
+      - '4200:80'
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  vehicles-data:

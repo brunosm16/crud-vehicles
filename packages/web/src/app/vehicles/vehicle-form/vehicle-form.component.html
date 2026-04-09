@@ -1,0 +1,74 @@
+<div class="container">
+  <h1>{{ isEdit ? 'Editar Veículo' : 'Novo Veículo' }}</h1>
+
+  <div *ngIf="loading" class="loading">Carregando...</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <form *ngIf="!loading" [formGroup]="form" (ngSubmit)="submit()">
+    <div class="row">
+      <div class="field">
+        <label for="placa">Placa *</label>
+        <input id="placa" formControlName="placa" placeholder="ABC1D23" />
+        <span class="field-error">{{ getError('placa') }}</span>
+      </div>
+
+      <div class="field">
+        <label for="marca">Marca *</label>
+        <input id="marca" formControlName="marca" placeholder="Toyota" />
+        <span class="field-error">{{ getError('marca') }}</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="modelo">Modelo *</label>
+        <input id="modelo" formControlName="modelo" placeholder="Corolla" />
+        <span class="field-error">{{ getError('modelo') }}</span>
+      </div>
+
+      <div class="field">
+        <label for="ano">Ano *</label>
+        <input
+          id="ano"
+          type="number"
+          formControlName="ano"
+          placeholder="2022"
+        />
+        <span class="field-error">{{ getError('ano') }}</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="chassi">Chassi *</label>
+        <input
+          id="chassi"
+          formControlName="chassi"
+          placeholder="9BWZZZ377VT004251"
+          maxlength="17"
+        />
+        <span class="field-error">{{ getError('chassi') }}</span>
+      </div>
+
+      <div class="field">
+        <label for="renavam">Renavam *</label>
+        <input
+          id="renavam"
+          formControlName="renavam"
+          placeholder="12345678901"
+          maxlength="11"
+        />
+        <span class="field-error">{{ getError('renavam') }}</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" (click)="cancel()">
+        Cancelar
+      </button>
+      <button type="submit" class="btn btn-primary" [disabled]="submitting">
+        {{ submitting ? 'Salvando...' : 'Salvar' }}
+      </button>
+    </div>
+  </form>
+</div>
