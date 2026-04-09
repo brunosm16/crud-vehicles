@@ -1,13 +1,26 @@
 {
-  "name": "crud-vehicles",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "crud-vehicles-monorepo",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "pnpm -r build",
+    "clean": "pnpm -r clean",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "mdfix": "prettier *.md --write",
+    "precommit": "lint-staged && pnpm test && pnpm build",
+    "docker:start": "docker compose up -d",
+    "docker:stop": "docker compose down",
+    "husky:install": "husky"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@tsconfig/node20": "^20.1.5",
+    "@types/node": "^24.0.1",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "git-cz": "^4.9.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2"
+  },
+  "packageManager": "pnpm@10.33.0"
 }
