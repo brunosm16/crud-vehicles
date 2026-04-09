@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   Vehicle,
+  PaginatedResponse,
   CreateVehiclePayload,
   UpdateVehiclePayload,
 } from './vehicle.model';
@@ -14,8 +15,10 @@ export class VehiclesService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getAll(): Observable<Vehicle[]> {
-    return this.http.get<Vehicle[]>(this.url);
+  getAll(
+    params: Record<string, string | number> = {}
+  ): Observable<PaginatedResponse<Vehicle>> {
+    return this.http.get<PaginatedResponse<Vehicle>>(this.url, { params });
   }
 
   getOne(id: string): Observable<Vehicle> {
@@ -27,6 +30,10 @@ export class VehiclesService {
   }
 
   update(id: string, payload: UpdateVehiclePayload): Observable<Vehicle> {
+    return this.http.patch<Vehicle>(`${this.url}/${id}`, payload);
+  }
+
+  replace(id: string, payload: CreateVehiclePayload): Observable<Vehicle> {
     return this.http.put<Vehicle>(`${this.url}/${id}`, payload);
   }
 

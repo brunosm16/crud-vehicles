@@ -10,6 +10,16 @@ export interface Vehicle {
   updatedAt?: string;
 }
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export type CreateVehiclePayload = Omit<
   Vehicle,
   'id' | 'createdAt' | 'updatedAt'

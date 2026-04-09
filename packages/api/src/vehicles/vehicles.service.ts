@@ -8,6 +8,17 @@ import { Not, Repository } from 'typeorm';
 import { Vehicle } from './vehicle.entity';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
+import { ListVehiclesQueryDto } from './dto/list-vehicles-query.dto';
+
+export interface PaginatedResult<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 
 @Injectable()
 export class VehiclesService {
@@ -16,12 +27,42 @@ export class VehiclesService {
     private readonly vehiclesRepository: Repository<Vehicle>
   ) {}
 
-  async findAll(): Promise<Vehicle[]> {
-    return this.vehiclesRepository
-      .createQueryBuilder('v')
-      .orderBy('v.createdAt', 'DESC')
+  async findAll(
+    query: ListVehiclesQueryDto
+  ): Promise<PaginatedResult<Vehicle>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+
+    const qb = this.vehiclesRepository.createQueryBuilder('v');
+
+    if (query.placa)
+      qb.andWhere('v.placa LIKE :placa', { placa: `%${query.placa}%` });
+    if (query.chassi)
+      qb.andWhere('v.chassi LIKE :chassi', { chassi: `%${query.chassi}%` });
+    if (query.renavam)
+      qb.andWhere('v.renavam LIKE :renavam', { renavam: `%${query.renavam}%` });
+    if (query.modelo)
+      qb.andWhere('v.modelo LIKE :modelo', { modelo: `%${query.modelo}%` });
+    if (query.marca)
+      qb.andWhere('v.marca LIKE :marca', { marca: `%${query.marca}%` });
+    if (query.ano) qb.andWhere('v.ano = :ano', { ano: query.ano });
+
+    qb.orderBy('v.createdAt', 'DESC')
       .addOrderBy('v.rowid', 'DESC')
-      .getMany();
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string): Promise<Vehicle> {

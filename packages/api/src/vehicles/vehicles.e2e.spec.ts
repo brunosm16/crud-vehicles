@@ -50,7 +50,13 @@ describe('Vehicles API (e2e)', () => {
   it('GET /api/vehicles returns empty array initially', async () => {
     const res = await request(app.getHttpServer()).get('/api/vehicles');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body.data).toEqual([]);
+    expect(res.body.meta).toMatchObject({
+      total: 0,
+      page: 1,
+      limit: 10,
+      totalPages: 0,
+    });
   });
 
   let createdId: string;
@@ -192,8 +198,9 @@ describe('Vehicles API (e2e)', () => {
   it('GET /api/vehicles returns created vehicles', async () => {
     const res = await request(app.getHttpServer()).get('/api/vehicles');
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].placa).toBe(validDto.placa);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].placa).toBe(validDto.placa);
+    expect(res.body.meta.total).toBe(1);
   });
 
   it('GET /api/vehicles/:id returns a vehicle', async () => {
@@ -221,10 +228,10 @@ describe('Vehicles API (e2e)', () => {
     expect(res.status).toBe(400);
   });
 
-  it('PUT /api/vehicles/:id updates a vehicle', async () => {
+  it('PUT /api/vehicles/:id replaces a vehicle', async () => {
     const res = await request(app.getHttpServer())
       .put(`/api/vehicles/${createdId}`)
-      .send({ modelo: 'Corolla Cross', ano: 2023 });
+      .send({ ...validDto, modelo: 'Corolla Cross', ano: 2023 });
 
     expect(res.status).toBe(200);
     expect(res.body.modelo).toBe('Corolla Cross');
@@ -232,11 +239,19 @@ describe('Vehicles API (e2e)', () => {
     expect(res.body.placa).toBe(validDto.placa);
   });
 
+  it('PUT /api/vehicles/:id rejects partial body', async () => {
+    const res = await request(app.getHttpServer())
+      .put(`/api/vehicles/${createdId}`)
+      .send({ modelo: 'Corolla Cross' });
+
+    expect(res.status).toBe(400);
+  });
+
   it('PUT /api/vehicles/:id returns 404 for unknown id', async () => {
     const fakeId = '00000000-0000-0000-0000-000000000000';
     const res = await request(app.getHttpServer())
       .put(`/api/vehicles/${fakeId}`)
-      .send({ modelo: 'Phantom' });
+      .send({ ...validDto, modelo: 'Phantom' });
 
     expect(res.status).toBe(404);
   });
@@ -244,7 +259,7 @@ describe('Vehicles API (e2e)', () => {
   it('PUT /api/vehicles/:id returns 400 for invalid uuid', async () => {
     const res = await request(app.getHttpServer())
       .put('/api/vehicles/not-a-uuid')
-      .send({ modelo: 'Test' });
+      .send(validDto);
 
     expect(res.status).toBe(400);
   });
@@ -252,7 +267,7 @@ describe('Vehicles API (e2e)', () => {
   it('PUT /api/vehicles/:id returns 400 for invalid field values', async () => {
     const res = await request(app.getHttpServer())
       .put(`/api/vehicles/${createdId}`)
-      .send({ ano: 1800 });
+      .send({ ...validDto, ano: 1800 });
 
     expect(res.status).toBe(400);
   });
@@ -272,18 +287,58 @@ describe('Vehicles API (e2e)', () => {
 
     const res = await request(app.getHttpServer())
       .put(`/api/vehicles/${second.body.id}`)
-      .send({ placa: validDto.placa });
+      .send({ ...validDto, placa: validDto.placa });
 
     expect(res.status).toBe(409);
   });
 
-  it('PUT /api/vehicles/:id allows updating with own unique values', async () => {
+  it('PUT /api/vehicles/:id allows replacing with own unique values', async () => {
     const res = await request(app.getHttpServer())
       .put(`/api/vehicles/${createdId}`)
-      .send({ placa: validDto.placa, modelo: 'Corolla GLi' });
+      .send({ ...validDto, modelo: 'Corolla GLi' });
 
     expect(res.status).toBe(200);
     expect(res.body.modelo).toBe('Corolla GLi');
+  });
+
+  it('PATCH /api/vehicles/:id partially updates a vehicle', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/vehicles/${createdId}`)
+      .send({ modelo: 'Corolla XEi', ano: 2024 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.modelo).toBe('Corolla XEi');
+    expect(res.body.ano).toBe(2024);
+    expect(res.body.placa).toBe(validDto.placa);
+  });
+
+  it('PATCH /api/vehicles/:id returns 404 for unknown id', async () => {
+    const fakeId = '00000000-0000-0000-0000-000000000000';
+    const res = await request(app.getHttpServer())
+      .patch(`/api/vehicles/${fakeId}`)
+      .send({ modelo: 'Phantom' });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('PATCH /api/vehicles/:id returns 400 for invalid uuid', async () => {
+    const res = await request(app.getHttpServer())
+      .patch('/api/vehicles/not-a-uuid')
+      .send({ modelo: 'Test' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('PATCH /api/vehicles/:id returns 409 on conflict', async () => {
+    const all = await request(app.getHttpServer()).get('/api/vehicles');
+    const other = all.body.data.find((v: { id: string }) => v.id !== createdId);
+    if (!other) throw new Error('Need a second vehicle for this test');
+
+    const res = await request(app.getHttpServer())
+      .patch(`/api/vehicles/${other.id}`)
+      .send({ placa: validDto.placa });
+
+    expect(res.status).toBe(409);
   });
 
   it('DELETE /api/vehicles/:id returns 400 for invalid uuid', async () => {
@@ -316,7 +371,7 @@ describe('Vehicles API (e2e)', () => {
 
   it('GET /api/vehicles returns vehicles ordered by createdAt DESC', async () => {
     const all = await request(app.getHttpServer()).get('/api/vehicles');
-    for (const v of all.body) {
+    for (const v of all.body.data) {
       await request(app.getHttpServer()).delete(`/api/vehicles/${v.id}`);
     }
 
@@ -340,8 +395,37 @@ describe('Vehicles API (e2e)', () => {
 
     const res = await request(app.getHttpServer()).get('/api/vehicles');
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].modelo).toBe('Second');
-    expect(res.body[1].modelo).toBe('First');
+    expect(res.body.data).toHaveLength(2);
+    expect(res.body.data[0].modelo).toBe('Second');
+    expect(res.body.data[1].modelo).toBe('First');
+  });
+
+  it('GET /api/vehicles supports pagination', async () => {
+    const res = await request(app.getHttpServer()).get(
+      '/api/vehicles?page=1&limit=1'
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.meta.total).toBe(2);
+    expect(res.body.meta.totalPages).toBe(2);
+    expect(res.body.meta.page).toBe(1);
+    expect(res.body.meta.limit).toBe(1);
+  });
+
+  it('GET /api/vehicles supports filtering by marca', async () => {
+    const res = await request(app.getHttpServer()).get(
+      '/api/vehicles?marca=Brand'
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(2);
+  });
+
+  it('GET /api/vehicles supports filtering by ano', async () => {
+    const res = await request(app.getHttpServer()).get(
+      '/api/vehicles?ano=2020'
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].modelo).toBe('First');
   });
 });

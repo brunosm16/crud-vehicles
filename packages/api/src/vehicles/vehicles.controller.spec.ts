@@ -27,6 +27,11 @@ const mockDto: CreateVehicleDto = {
   ano: 2022,
 };
 
+const mockPaginatedResult = {
+  data: [mockVehicle],
+  meta: { total: 1, page: 1, limit: 10, totalPages: 1 },
+};
+
 const mockService = {
   findAll: jest.fn(),
   findOne: jest.fn(),
@@ -50,17 +55,35 @@ describe('VehiclesController', () => {
   });
 
   describe('findAll', () => {
-    it('should return array of vehicles', async () => {
-      mockService.findAll.mockResolvedValue([mockVehicle]);
-      const result = await controller.findAll();
-      expect(result).toEqual([mockVehicle]);
-      expect(mockService.findAll).toHaveBeenCalledTimes(1);
+    it('should return paginated vehicles', async () => {
+      mockService.findAll.mockResolvedValue(mockPaginatedResult);
+      const result = await controller.findAll({ page: 1, limit: 10 });
+      expect(result).toEqual(mockPaginatedResult);
+      expect(mockService.findAll).toHaveBeenCalledWith({ page: 1, limit: 10 });
     });
 
-    it('should return empty array when no vehicles', async () => {
-      mockService.findAll.mockResolvedValue([]);
-      const result = await controller.findAll();
-      expect(result).toEqual([]);
+    it('should pass filter params to service', async () => {
+      mockService.findAll.mockResolvedValue({
+        ...mockPaginatedResult,
+        data: [],
+      });
+      await controller.findAll({ page: 1, limit: 10, marca: 'Toyota' });
+      expect(mockService.findAll).toHaveBeenCalledWith({
+        page: 1,
+        limit: 10,
+        marca: 'Toyota',
+      });
+    });
+
+    it('should return empty data when no vehicles', async () => {
+      const empty = {
+        data: [],
+        meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+      };
+      mockService.findAll.mockResolvedValue(empty);
+      const result = await controller.findAll({});
+      expect(result.data).toEqual([]);
+      expect(result.meta.total).toBe(0);
     });
   });
 
@@ -101,7 +124,32 @@ describe('VehiclesController', () => {
     });
   });
 
-  describe('update', () => {
+  describe('replace (PUT)', () => {
+    it('should return replaced vehicle', async () => {
+      const replaced = { ...mockVehicle, modelo: 'Civic', marca: 'Honda' };
+      mockService.update.mockResolvedValue(replaced);
+      const result = await controller.replace('uuid-1', {
+        ...mockDto,
+        modelo: 'Civic',
+        marca: 'Honda',
+      });
+      expect(result.modelo).toBe('Civic');
+      expect(mockService.update).toHaveBeenCalledWith('uuid-1', {
+        ...mockDto,
+        modelo: 'Civic',
+        marca: 'Honda',
+      });
+    });
+
+    it('should propagate NotFoundException from service', async () => {
+      mockService.update.mockRejectedValue(new NotFoundException());
+      await expect(controller.replace('non-existent', mockDto)).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+
+  describe('update (PATCH)', () => {
     it('should return updated vehicle', async () => {
       const updated = { ...mockVehicle, modelo: 'Civic' };
       mockService.update.mockResolvedValue(updated);

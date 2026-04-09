@@ -4,7 +4,7 @@ import {
   HttpTestingController,
 } from '@angular/common/http/testing';
 import { VehiclesService } from './vehicles.service';
-import { Vehicle } from './vehicle.model';
+import { Vehicle, PaginatedResponse } from './vehicle.model';
 
 const mockVehicle: Vehicle = {
   id: 'uuid-1',
@@ -14,6 +14,11 @@ const mockVehicle: Vehicle = {
   modelo: 'Corolla',
   marca: 'Toyota',
   ano: 2022,
+};
+
+const mockPaginatedResponse: PaginatedResponse<Vehicle> = {
+  data: [mockVehicle],
+  meta: { total: 1, page: 1, limit: 10, totalPages: 1 },
 };
 
 describe('VehiclesService', () => {
@@ -32,21 +37,37 @@ describe('VehiclesService', () => {
   afterEach(() => httpMock.verify());
 
   describe('getAll', () => {
-    it('should return vehicles array', () => {
-      service.getAll().subscribe((vehicles) => {
-        expect(vehicles).toEqual([mockVehicle]);
+    it('should return paginated response', () => {
+      service.getAll().subscribe((response) => {
+        expect(response).toEqual(mockPaginatedResponse);
       });
       const req = httpMock.expectOne('/api/vehicles');
       expect(req.request.method).toBe('GET');
-      req.flush([mockVehicle]);
+      req.flush(mockPaginatedResponse);
     });
 
-    it('should return empty array when no vehicles', () => {
-      service.getAll().subscribe((vehicles) => {
-        expect(vehicles).toEqual([]);
+    it('should pass query params', () => {
+      service.getAll({ page: 2, limit: 5, marca: 'Toyota' }).subscribe();
+      const req = httpMock.expectOne((r) => r.url === '/api/vehicles');
+      expect(req.request.params.get('page')).toBe('2');
+      expect(req.request.params.get('limit')).toBe('5');
+      expect(req.request.params.get('marca')).toBe('Toyota');
+      req.flush({
+        data: [],
+        meta: { total: 0, page: 2, limit: 5, totalPages: 0 },
+      });
+    });
+
+    it('should return empty data when no vehicles', () => {
+      const empty = {
+        data: [],
+        meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+      };
+      service.getAll().subscribe((response) => {
+        expect(response.data).toEqual([]);
       });
       const req = httpMock.expectOne('/api/vehicles');
-      req.flush([]);
+      req.flush(empty);
     });
 
     it('should propagate HTTP errors', () => {
@@ -119,27 +140,43 @@ describe('VehiclesService', () => {
   });
 
   describe('update', () => {
-    it('should PUT payload and return updated vehicle', () => {
+    it('should PATCH payload and return updated vehicle', () => {
       const payload = { modelo: 'Civic' };
       service.update('uuid-1', payload).subscribe((v) => {
         expect(v.modelo).toBe('Civic');
       });
       const req = httpMock.expectOne('/api/vehicles/uuid-1');
-      expect(req.request.method).toBe('PUT');
+      expect(req.request.method).toBe('PATCH');
       expect(req.request.body).toEqual(payload);
       req.flush({ ...mockVehicle, modelo: 'Civic' });
     });
 
-    it('should send full payload when all fields are provided', () => {
+    it('should propagate 404 when vehicle not found', () => {
+      service.update('bad-id', { modelo: 'X' }).subscribe({
+        error: (err) => {
+          expect(err.status).toBe(404);
+        },
+      });
+      const req = httpMock.expectOne('/api/vehicles/bad-id');
+      req.flush('Not Found', { status: 404, statusText: 'Not Found' });
+    });
+  });
+
+  describe('replace', () => {
+    it('should PUT full payload and return replaced vehicle', () => {
       const { id, ...payload } = mockVehicle;
-      service.update('uuid-1', payload).subscribe();
+      service.replace('uuid-1', payload).subscribe((v) => {
+        expect(v).toEqual(mockVehicle);
+      });
       const req = httpMock.expectOne('/api/vehicles/uuid-1');
+      expect(req.request.method).toBe('PUT');
       expect(req.request.body).toEqual(payload);
       req.flush(mockVehicle);
     });
 
     it('should propagate 404 when vehicle not found', () => {
-      service.update('bad-id', { modelo: 'X' }).subscribe({
+      const { id, ...payload } = mockVehicle;
+      service.replace('bad-id', payload).subscribe({
         error: (err) => {
           expect(err.status).toBe(404);
         },

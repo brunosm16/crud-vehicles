@@ -32,14 +32,18 @@ const createQueryBuilderMock = {
   andWhere: jest.fn().mockReturnThis(),
   orderBy: jest.fn().mockReturnThis(),
   addOrderBy: jest.fn().mockReturnThis(),
+  skip: jest.fn().mockReturnThis(),
+  take: jest.fn().mockReturnThis(),
   getOne: jest.fn().mockResolvedValue(null),
   getMany: jest.fn().mockResolvedValue([]),
+  getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
 };
 
 const mockRepository = {
   find: jest.fn(),
   findOne: jest.fn(),
   findOneBy: jest.fn(),
+  findAndCount: jest.fn(),
   create: jest.fn(),
   save: jest.fn(),
   delete: jest.fn(),
@@ -68,10 +72,19 @@ describe('VehiclesService', () => {
   });
 
   describe('findAll', () => {
-    it('should return array of vehicles', async () => {
-      createQueryBuilderMock.getMany.mockResolvedValue([mockVehicle]);
-      const result = await service.findAll();
-      expect(result).toEqual([mockVehicle]);
+    it('should return paginated vehicles', async () => {
+      createQueryBuilderMock.getManyAndCount.mockResolvedValue([
+        [mockVehicle],
+        1,
+      ]);
+      const result = await service.findAll({ page: 1, limit: 10 });
+      expect(result.data).toEqual([mockVehicle]);
+      expect(result.meta).toEqual({
+        total: 1,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      });
       expect(createQueryBuilderMock.orderBy).toHaveBeenCalledWith(
         'v.createdAt',
         'DESC'
@@ -80,12 +93,39 @@ describe('VehiclesService', () => {
         'v.rowid',
         'DESC'
       );
+      expect(createQueryBuilderMock.skip).toHaveBeenCalledWith(0);
+      expect(createQueryBuilderMock.take).toHaveBeenCalledWith(10);
     });
 
-    it('should return empty array when no vehicles', async () => {
-      createQueryBuilderMock.getMany.mockResolvedValue([]);
-      const result = await service.findAll();
-      expect(result).toEqual([]);
+    it('should return empty data when no vehicles', async () => {
+      createQueryBuilderMock.getManyAndCount.mockResolvedValue([[], 0]);
+      const result = await service.findAll({ page: 1, limit: 10 });
+      expect(result.data).toEqual([]);
+      expect(result.meta.total).toBe(0);
+      expect(result.meta.totalPages).toBe(0);
+    });
+
+    it('should apply filters', async () => {
+      createQueryBuilderMock.getManyAndCount.mockResolvedValue([
+        [mockVehicle],
+        1,
+      ]);
+      await service.findAll({ page: 1, limit: 10, marca: 'Toyota', ano: 2022 });
+      expect(createQueryBuilderMock.andWhere).toHaveBeenCalledWith(
+        'v.marca LIKE :marca',
+        { marca: '%Toyota%' }
+      );
+      expect(createQueryBuilderMock.andWhere).toHaveBeenCalledWith(
+        'v.ano = :ano',
+        { ano: 2022 }
+      );
+    });
+
+    it('should calculate correct skip for page > 1', async () => {
+      createQueryBuilderMock.getManyAndCount.mockResolvedValue([[], 0]);
+      await service.findAll({ page: 3, limit: 5 });
+      expect(createQueryBuilderMock.skip).toHaveBeenCalledWith(10);
+      expect(createQueryBuilderMock.take).toHaveBeenCalledWith(5);
     });
   });
 

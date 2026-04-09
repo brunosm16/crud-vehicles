@@ -4,7 +4,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { of, throwError, Subject } from 'rxjs';
 import { VehicleListComponent } from './vehicle-list.component';
 import { VehiclesService } from '../vehicles.service';
-import { Vehicle } from '../vehicle.model';
+import { Vehicle, PaginatedResponse } from '../vehicle.model';
 import { CommonModule } from '@angular/common';
 
 const mockVehicle: Vehicle = {
@@ -27,6 +27,16 @@ const mockVehicle2: Vehicle = {
   ano: 2023,
 };
 
+const mockPaginatedAll: PaginatedResponse<Vehicle> = {
+  data: [mockVehicle, mockVehicle2],
+  meta: { total: 2, page: 1, limit: 10, totalPages: 1 },
+};
+
+const mockPaginatedEmpty: PaginatedResponse<Vehicle> = {
+  data: [],
+  meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+};
+
 const mockService = {
   getAll: jest.fn(),
   remove: jest.fn(),
@@ -37,7 +47,7 @@ describe('VehicleListComponent', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    mockService.getAll.mockReturnValue(of([mockVehicle, mockVehicle2]));
+    mockService.getAll.mockReturnValue(of(mockPaginatedAll));
 
     await TestBed.configureTestingModule({
       declarations: [VehicleListComponent],
@@ -60,13 +70,13 @@ describe('VehicleListComponent', () => {
   });
 
   it('should set loading to true while fetching', () => {
-    const subj = new Subject<Vehicle[]>();
+    const subj = new Subject<PaginatedResponse<Vehicle>>();
     mockService.getAll.mockReturnValue(subj.asObservable());
     const fixture = TestBed.createComponent(VehicleListComponent);
     const comp = fixture.componentInstance;
     comp.load();
     expect(comp.loading).toBe(true);
-    subj.next([]);
+    subj.next(mockPaginatedEmpty);
     subj.complete();
     expect(comp.loading).toBe(false);
   });
@@ -88,7 +98,7 @@ describe('VehicleListComponent', () => {
   });
 
   it('should handle empty vehicle list', () => {
-    mockService.getAll.mockReturnValue(of([]));
+    mockService.getAll.mockReturnValue(of(mockPaginatedEmpty));
     const fixture = TestBed.createComponent(VehicleListComponent);
     fixture.detectChanges();
     expect(fixture.componentInstance.vehicles).toEqual([]);
@@ -154,7 +164,7 @@ describe('VehicleListComponent', () => {
   });
 
   it('should show empty message when no vehicles', () => {
-    mockService.getAll.mockReturnValue(of([]));
+    mockService.getAll.mockReturnValue(of(mockPaginatedEmpty));
     const fixture = TestBed.createComponent(VehicleListComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;

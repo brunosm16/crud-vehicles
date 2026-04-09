@@ -26,8 +26,8 @@ export class VehicleListComponent implements OnInit {
     this.loading = true;
     this.error = '';
     this.vehiclesService.getAll().subscribe({
-      next: (data) => {
-        this.vehicles = data;
+      next: (response) => {
+        this.vehicles = response.data;
         this.loading = false;
       },
       error: () => {
