@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, NgZone, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { VehiclesService } from '../vehicles.service';
@@ -20,7 +20,8 @@ export class VehicleFormComponent implements OnInit {
     private readonly fb: FormBuilder,
     private readonly vehiclesService: VehiclesService,
     private readonly route: ActivatedRoute,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -85,7 +86,7 @@ export class VehicleFormComponent implements OnInit {
       : this.vehiclesService.create(payload);
 
     req$.subscribe({
-      next: () => this.router.navigate(['/vehicles']),
+      next: () => this.ngZone.run(() => this.router.navigate(['/vehicles'])),
       error: (err) => {
         this.error = err?.error?.message ?? 'Erro ao salvar veículo.';
         this.submitting = false;
@@ -94,7 +95,7 @@ export class VehicleFormComponent implements OnInit {
   }
 
   cancel(): void {
-    this.router.navigate(['/vehicles']);
+    this.ngZone.run(() => this.router.navigate(['/vehicles']));
   }
 
   getError(field: string): string {
