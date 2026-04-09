@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AuditService, VehicleEvent } from './audit.service';
 import { AuditLog } from './audit-log.entity';
 
@@ -19,6 +20,14 @@ const mockRepository = {
   find: jest.fn(),
 };
 
+const mockLogger = {
+  log: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+  verbose: jest.fn(),
+};
+
 describe('AuditService', () => {
   let service: AuditService;
 
@@ -29,6 +38,7 @@ describe('AuditService', () => {
       providers: [
         AuditService,
         { provide: getRepositoryToken(AuditLog), useValue: mockRepository },
+        { provide: WINSTON_MODULE_NEST_PROVIDER, useValue: mockLogger },
       ],
     }).compile();
 

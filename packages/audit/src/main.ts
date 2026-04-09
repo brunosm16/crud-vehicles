@@ -1,10 +1,12 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AuditModule } from './audit.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AuditModule);
+  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.KAFKA,
