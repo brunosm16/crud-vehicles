@@ -6,7 +6,7 @@ import { Vehicle } from './vehicles/vehicle.entity';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
-      type: 'sqlite',
+      type: 'better-sqlite3',
       database: process.env.DB_PATH ?? 'data/vehicles.sqlite',
       entities: [Vehicle],
       synchronize: true,

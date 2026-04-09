@@ -1,8 +1,6 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "Node16",
-    "moduleResolution": "Node16",
+    "module": "commonjs",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -12,8 +10,10 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "incremental": true,
+    "incremental": false,
     "skipLibCheck": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
     "strictBindCallApply": false,
     "strictPropertyInitialization": false,
     "forceConsistentCasingInFileNames": false,
