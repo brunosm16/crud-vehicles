@@ -1,0 +1,13 @@
+packages:
+  - packages/*
+
+engineStrict: true
+publicHoistPattern:
+  - '@eslint/*'
+  - '@vitest/*'
+  - 'globals'
+
+catalogs:
+  peer:
+    'typescript': '^5.8.3'
+    '@types/node': '^25.5.2'
