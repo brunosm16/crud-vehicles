@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { Vehicle } from './vehicle.entity';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
@@ -13,15 +13,19 @@ import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 export class VehiclesService {
   constructor(
     @InjectRepository(Vehicle)
-    private readonly vehiclesRepo: Repository<Vehicle>
+    private readonly vehiclesRepository: Repository<Vehicle>
   ) {}
 
-  findAll(): Promise<Vehicle[]> {
-    return this.vehiclesRepo.find({ order: { createdAt: 'DESC' } });
+  async findAll(): Promise<Vehicle[]> {
+    return this.vehiclesRepository
+      .createQueryBuilder('v')
+      .orderBy('v.createdAt', 'DESC')
+      .addOrderBy('v.rowid', 'DESC')
+      .getMany();
   }
 
   async findOne(id: string): Promise<Vehicle> {
-    const vehicle = await this.vehiclesRepo.findOneBy({ id });
+    const vehicle = await this.vehiclesRepository.findOneBy({ id });
     if (!vehicle) {
       throw new NotFoundException(`Veículo com id "${id}" não encontrado`);
     }
@@ -30,8 +34,8 @@ export class VehiclesService {
 
   async create(dto: CreateVehicleDto): Promise<Vehicle> {
     await this.ensureUnique(dto.placa, dto.chassi, dto.renavam);
-    const vehicle = this.vehiclesRepo.create(dto);
-    return this.vehiclesRepo.save(vehicle);
+    const vehicle = this.vehiclesRepository.create(dto);
+    return this.vehiclesRepository.save(vehicle);
   }
 
   async update(id: string, dto: UpdateVehicleDto): Promise<Vehicle> {
@@ -43,12 +47,12 @@ export class VehiclesService {
       id
     );
     Object.assign(existing, dto);
-    return this.vehiclesRepo.save(existing);
+    return this.vehiclesRepository.save(existing);
   }
 
   async remove(id: string): Promise<void> {
     await this.findOne(id);
-    await this.vehiclesRepo.delete(id);
+    await this.vehiclesRepository.delete(id);
   }
 
   private async ensureUnique(
@@ -57,19 +61,15 @@ export class VehiclesService {
     renavam: string,
     excludeId?: string
   ): Promise<void> {
-    const qb = this.vehiclesRepo
-      .createQueryBuilder('v')
-      .where('v.placa = :placa OR v.chassi = :chassi OR v.renavam = :renavam', {
-        placa,
-        chassi,
-        renavam,
-      });
+    const not = excludeId ? { id: Not(excludeId) } : {};
+    const conflict = await this.vehiclesRepository.findOne({
+      where: [
+        { ...not, placa },
+        { ...not, chassi },
+        { ...not, renavam },
+      ],
+    });
 
-    if (excludeId) {
-      qb.andWhere('v.id != :excludeId', { excludeId });
-    }
-
-    const conflict = await qb.getOne();
     if (conflict) {
       throw new ConflictException(
         'Já existe um veículo com a mesma placa, chassi ou renavam'

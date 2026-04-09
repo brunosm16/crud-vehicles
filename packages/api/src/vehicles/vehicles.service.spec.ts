@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ConflictException } from '@nestjs/common';
+import { Not } from 'typeorm';
 import { VehiclesService } from './vehicles.service';
 import { Vehicle } from './vehicle.entity';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
@@ -29,11 +30,15 @@ const mockDto: CreateVehicleDto = {
 const createQueryBuilderMock = {
   where: jest.fn().mockReturnThis(),
   andWhere: jest.fn().mockReturnThis(),
+  orderBy: jest.fn().mockReturnThis(),
+  addOrderBy: jest.fn().mockReturnThis(),
   getOne: jest.fn().mockResolvedValue(null),
+  getMany: jest.fn().mockResolvedValue([]),
 };
 
 const mockRepository = {
   find: jest.fn(),
+  findOne: jest.fn(),
   findOneBy: jest.fn(),
   create: jest.fn(),
   save: jest.fn(),
@@ -46,6 +51,7 @@ describe('VehiclesService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockRepository.findOne.mockResolvedValue(null);
     createQueryBuilderMock.getOne.mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -63,16 +69,21 @@ describe('VehiclesService', () => {
 
   describe('findAll', () => {
     it('should return array of vehicles', async () => {
-      mockRepository.find.mockResolvedValue([mockVehicle]);
+      createQueryBuilderMock.getMany.mockResolvedValue([mockVehicle]);
       const result = await service.findAll();
       expect(result).toEqual([mockVehicle]);
-      expect(mockRepository.find).toHaveBeenCalledWith({
-        order: { createdAt: 'DESC' },
-      });
+      expect(createQueryBuilderMock.orderBy).toHaveBeenCalledWith(
+        'v.createdAt',
+        'DESC'
+      );
+      expect(createQueryBuilderMock.addOrderBy).toHaveBeenCalledWith(
+        'v.rowid',
+        'DESC'
+      );
     });
 
     it('should return empty array when no vehicles', async () => {
-      mockRepository.find.mockResolvedValue([]);
+      createQueryBuilderMock.getMany.mockResolvedValue([]);
       const result = await service.findAll();
       expect(result).toEqual([]);
     });
@@ -117,19 +128,17 @@ describe('VehiclesService', () => {
       mockRepository.save.mockResolvedValue(mockVehicle);
 
       await service.create(mockDto);
-      expect(createQueryBuilderMock.where).toHaveBeenCalledWith(
-        'v.placa = :placa OR v.chassi = :chassi OR v.renavam = :renavam',
-        {
-          placa: mockDto.placa,
-          chassi: mockDto.chassi,
-          renavam: mockDto.renavam,
-        }
-      );
-      expect(createQueryBuilderMock.andWhere).not.toHaveBeenCalled();
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: [
+          { placa: mockDto.placa },
+          { chassi: mockDto.chassi },
+          { renavam: mockDto.renavam },
+        ],
+      });
     });
 
     it('should throw ConflictException when placa already exists', async () => {
-      createQueryBuilderMock.getOne.mockResolvedValue(mockVehicle);
+      mockRepository.findOne.mockResolvedValue(mockVehicle);
       await expect(service.create(mockDto)).rejects.toThrow(ConflictException);
       await expect(service.create(mockDto)).rejects.toThrow(
         'Já existe um veículo com a mesma placa, chassi ou renavam'
@@ -137,7 +146,7 @@ describe('VehiclesService', () => {
     });
 
     it('should throw ConflictException when chassi already exists', async () => {
-      createQueryBuilderMock.getOne.mockResolvedValue({
+      mockRepository.findOne.mockResolvedValue({
         ...mockVehicle,
         placa: 'XYZ9999',
       });
@@ -163,10 +172,13 @@ describe('VehiclesService', () => {
       mockRepository.save.mockResolvedValue(existing);
 
       await service.update('uuid-1', { modelo: 'Civic' });
-      expect(createQueryBuilderMock.andWhere).toHaveBeenCalledWith(
-        'v.id != :excludeId',
-        { excludeId: 'uuid-1' }
-      );
+      expect(mockRepository.findOne).toHaveBeenCalledWith({
+        where: [
+          { id: Not('uuid-1'), placa: existing.placa },
+          { id: Not('uuid-1'), chassi: existing.chassi },
+          { id: Not('uuid-1'), renavam: existing.renavam },
+        ],
+      });
     });
 
     it('should use existing values for fields not in dto', async () => {
@@ -175,13 +187,14 @@ describe('VehiclesService', () => {
       mockRepository.save.mockResolvedValue(existing);
 
       await service.update('uuid-1', { modelo: 'Civic' });
-      expect(createQueryBuilderMock.where).toHaveBeenCalledWith(
-        'v.placa = :placa OR v.chassi = :chassi OR v.renavam = :renavam',
-        {
-          placa: existing.placa,
-          chassi: existing.chassi,
-          renavam: existing.renavam,
-        }
+      expect(mockRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.arrayContaining([
+            expect.objectContaining({ placa: existing.placa }),
+            expect.objectContaining({ chassi: existing.chassi }),
+            expect.objectContaining({ renavam: existing.renavam }),
+          ]),
+        })
       );
     });
 
@@ -195,7 +208,7 @@ describe('VehiclesService', () => {
     it('should throw ConflictException when updating to conflicting data', async () => {
       const existing = { ...mockVehicle };
       mockRepository.findOneBy.mockResolvedValue(existing);
-      createQueryBuilderMock.getOne.mockResolvedValue({
+      mockRepository.findOne.mockResolvedValue({
         ...mockVehicle,
         id: 'uuid-2',
       });

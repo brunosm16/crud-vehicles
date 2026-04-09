@@ -255,7 +255,6 @@ describe('VehicleFormComponent', () => {
       const comp = fixture.componentInstance;
       comp.form.setValue(validFormData);
       comp.submit();
-      // submitting is set to true before the observable completes
       expect(mockService.create).toHaveBeenCalled();
     });
   });

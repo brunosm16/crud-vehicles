@@ -120,7 +120,7 @@ describe('VehicleListComponent', () => {
 
     fixture.componentInstance.delete('uuid-1');
     expect(mockService.remove).toHaveBeenCalledWith('uuid-1');
-    expect(mockService.getAll).toHaveBeenCalledTimes(2); // init + reload
+    expect(mockService.getAll).toHaveBeenCalledTimes(2);
   });
 
   it('delete should not call remove when user cancels', () => {
