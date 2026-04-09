@@ -20,7 +20,15 @@ Aplicação full-stack de gerenciamento de veículos, construída como **monorep
 
 ---
 
-## Evidências em Vídeo
+## Demonstração em Vídeo
+
+#### Audição de Operações
+
+https://github.com/user-attachments/assets/f45efffd-90dc-4ddb-800e-132ae31dae07
+
+#### Operações CRUD
+
+https://github.com/user-attachments/assets/132e8201-211c-4b29-91f3-ff5c9f0ee839
 
 ## Tecnologias Utilizadas
 
